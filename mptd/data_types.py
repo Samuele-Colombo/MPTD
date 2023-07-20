@@ -12,6 +12,7 @@
 # COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR 
 # OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
+import torch
 from torch_geometric.data import Data
 
 class SimTransientData(Data):
@@ -63,3 +64,15 @@ class SimTransientData(Data):
         """
         assert replace.shape == self.pos.shape
         self.x[:, -3:] = replace
+    
+    def append(self, other):
+        new_edge_index = torch.hstack([self.edge_index, other.edge_index]) \
+                         if other.edge_index is not None and self.edge_index is not None else None
+        new_edge_attr = torch.hstack([self.edge_attr, other.edge_attr]) \
+                        if other.edge_attr is not None and self.edge_attr is not None else None
+        
+        return SimTransientData(x=torch.vstack([self.x, other.x]), 
+                                y=torch.hstack([self.y, other.y]), 
+                                edge_index=new_edge_index,
+                                edge_attr=new_edge_attr
+                               )

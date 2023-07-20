@@ -86,7 +86,7 @@ def plot_fits_data(filename, outfile=None, sizes=None):
     else:
         plt.show()
 
-def plot_data(data, color, issimulated, keys, title=None):
+def plot_data(data, color, issimulated, keys, title=None, outfile=None):
     pd_data = pd.DataFrame(data , columns=keys)
 
     pd_data["ISSIMULATED"] = issimulated
@@ -127,14 +127,16 @@ def plot_data(data, color, issimulated, keys, title=None):
 
     # Add a legend
     plt.legend()
-    plt.tight_layout()
     if title:
         plt.title(title)
+    plt.tight_layout()
+    if outfile:
+        plt.savefig(outfile)
     plt.show()
 
-def plot_clusters(data, sizes, labels, keys):
+def plot_clusters(data, sizes, labels, keys, **fig_kwargs):
     # Create a 3D scatterplot
-    fig = plt.figure()
+    fig = plt.figure(**fig_kwargs)
     ax = fig.add_subplot(111, projection='3d')
 
     # Plot each data point with a color corresponding to its cluster label
@@ -142,7 +144,8 @@ def plot_clusters(data, sizes, labels, keys):
         if label == -1: continue
         label_mask = labels==label
         labeled_data = data[label_mask]
-        ax.scatter(labeled_data[:, 0], labeled_data[:, 1], labeled_data[:, 2], label=label, sizes=sizes)
+        if len(labeled_data) > 0:
+            ax.scatter(labeled_data[:, 0], labeled_data[:, 1], labeled_data[:, 2], label=label, sizes=sizes)
         # labeled_sizes = sizes[label_mask]
         # num=issimulated[mask][label_mask].sum().item()
         # den = label_mask.sum()
