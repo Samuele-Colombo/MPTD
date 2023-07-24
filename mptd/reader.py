@@ -22,8 +22,6 @@ from astropy import units as u
 from astropy.io import fits
 from astropy.table import Table
 
-from mptd.data_types import SimTransientData
-
 newunits = [u.def_unit("PIXELS", u.pixel),
             u.def_unit("CHAN", u.chan),
             u.def_unit("CHANNEL", u.chan),
@@ -61,19 +59,13 @@ def read_events(genuine, simulated, keys):
         I_dat = Table(gen_file[1].data)
 
     # Join the genuine and simulated events and remove the duplicate events
-    # dat = astropy_table.join(I_dat, F_dat, keys=keys, join_type='outer')
     dat = astropy_table.vstack([I_dat, F_dat], join_type='exact')
-    # dat = astropy_table.unique(dat, keys=keys, keep='first')
     dat = astropy_table.unique(dat, keys=keys, keep='none')
 
     # num_simulated = len(dat) - len(I_dat)
     num_simulated = len(dat)
 
     # Add a new column indicating whether the event is simulated
-    # Simulated events are all last since `F_dat` was appended and any
-    # non-simulated event in it would have been discarded by the `keep='first'`
-    # argumento of `astropy_table.unique`
-    # dat['ISSIMULATED'] = astropy_table.Column([False] * len(I_dat) + [True] * num_simulated, dtype=bool)
     dat['ISSIMULATED']   = astropy_table.Column([True] * num_simulated, dtype=bool)
     I_dat['ISSIMULATED'] = astropy_table.Column([False] * len(I_dat), dtype=bool)
     dat = astropy_table.vstack([dat, I_dat], join_type="exact")
@@ -83,24 +75,54 @@ def read_events(genuine, simulated, keys):
     return dat[keys]
 
 def filter_from_key(data, key, low, high):
+    """
+    Filter data based on a specified key within a range.
+
+    Parameters
+    ----------
+    data : astropy.Table
+        The data table to filter.
+    key : str
+        The key to filter on.
+    low : float
+        The lower bound of the range.
+    high : float
+        The upper bound of the range.
+
+    Returns
+    -------
+    np.ndarray
+        Boolean array indicating whether each row satisfies the filter.
+    """
     return np.logical_and(data[key] >= low, data[key] <= high)
 
 def get_raw_data(filename, keys, filters:dict):
+    """
+    Extract raw data from a file based on specified keys and filters.
+
+    Parameters
+    ----------
+    filename : str, file-like object, list, pathlib.Path object
+        The file containing the data.
+    keys : List[str]
+        Column labels for the attributes of interest.
+    filters : dict
+        Dictionary containing filtering conditions for specified keys.
+
+    Returns
+    -------
+    astropy.Table
+        A table containing the raw data with selected keys and "ISSIMULATED" column.
+    """
     keys_plus = keys + [key for key in filters.keys() if key not in keys]
     if 'EVLI' in filename:
         companion = filename.replace('EVLI', 'EVLF')
-        raw_data =read_events(filename, companion, keys_plus)
+        raw_data = read_events(filename, companion, keys_plus)
     elif 'EVLF' in filename:
         companion = filename.replace('EVLF', 'EVLI')
-        raw_data =read_events(companion, filename, keys_plus)
+        raw_data = read_events(companion, filename, keys_plus)
     else:
         raise Exception("filename does not contain the 'EVLI' or 'EVLF' indicator in the file name.")
     for key, values in filters.items():
         raw_data = raw_data[filter_from_key(raw_data, key, *values)]
-    return raw_data[keys+["ISSIMULATED"]]
-
-def get_data(filename, keys, filters:dict):
-    raw_data = get_raw_data(filename, keys, filters)
-    data = SimTransientData(x = torch.from_numpy(np.array([raw_data[key] for key in keys]).T).float(),
-                            y = torch.from_numpy(np.array(raw_data["ISSIMULATED"])).long())
-    return data
+    return raw_data[keys + ["ISSIMULATED"]]
